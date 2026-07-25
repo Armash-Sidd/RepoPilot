@@ -1,0 +1,11 @@
+# Ignore local dependencies, build output, secrets, and Python caches.
+node_modules/
+.next/
+out/
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+*.log
+
