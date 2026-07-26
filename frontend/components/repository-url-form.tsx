@@ -4,6 +4,18 @@ import { FormEvent, useState } from "react";
 import { ArrowRightIcon, GithubIcon } from "./icons";
 
 const githubRepositoryPattern = /^https:\/\/(?:www\.)?github\.com\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]+\/?$/;
+const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
+
+type AnalysisResponse = {
+  success: true;
+  owner: string;
+  repository: string;
+  repository_url: string;
+};
+
+type ApiValidationError = {
+  detail?: string | Array<{ msg?: string }>;
+};
 
 function getUrlError(value: string): string | null {
   if (!value.trim()) return "Enter a public GitHub repository URL to continue.";
@@ -15,17 +27,40 @@ export function RepositoryUrlForm() {
   const [url, setUrl] = useState("");
   const [touched, setTouched] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submissionError, setSubmissionError] = useState<string | null>(null);
+  const [result, setResult] = useState<AnalysisResponse | null>(null);
   const error = getUrlError(url);
   const canSubmit = !error && !isLoading;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setTouched(true);
     if (!canSubmit) return;
 
     setIsLoading(true);
-    // The backend integration is intentionally deferred to the next milestone.
-    window.setTimeout(() => setIsLoading(false), 1200);
+    setSubmissionError(null);
+    setResult(null);
+
+    try {
+      const response = await fetch(`${apiBaseUrl}/api/analyze`, {
+        body: JSON.stringify({ repository_url: url.trim() }),
+        headers: { "Content-Type": "application/json" },
+        method: "POST"
+      });
+      const body = (await response.json()) as AnalysisResponse | ApiValidationError;
+
+      if (!response.ok) {
+        const detail = (body as ApiValidationError).detail;
+        const message = Array.isArray(detail) ? detail[0]?.msg : detail;
+        throw new Error(message || "We could not validate that repository URL.");
+      }
+
+      setResult(body as AnalysisResponse);
+    } catch (error) {
+      setSubmissionError(error instanceof Error ? error.message : "We could not reach RepoPilot. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -55,7 +90,18 @@ export function RepositoryUrlForm() {
         </button>
       </div>
       {touched && error ? <p className="mt-3 text-left text-sm text-rose-600" id="repository-url-error" role="alert">{error}</p> : <p className="mt-3 text-left text-sm text-slate-500">Public GitHub repositories only. No code is executed.</p>}
+      {submissionError ? <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-sm text-rose-700" role="alert">{submissionError}</p> : null}
+      {result ? (
+        <section aria-live="polite" className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-left shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-700">Repository ready</p>
+          <h2 className="mt-2 text-xl font-bold text-slate-950">Repository details</h2>
+          <dl className="mt-5 grid gap-4 sm:grid-cols-3">
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repository Owner</dt><dd className="mt-1 font-medium text-slate-900">{result.owner}</dd></div>
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repository Name</dt><dd className="mt-1 font-medium text-slate-900">{result.repository}</dd></div>
+            <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repository URL</dt><dd className="mt-1 break-all font-medium text-blue-700"><a className="hover:underline" href={result.repository_url} rel="noreferrer" target="_blank">{result.repository_url}</a></dd></div>
+          </dl>
+        </section>
+      ) : null}
     </form>
   );
 }
-
