@@ -1,4 +1,6 @@
-"""Request and response schemas for repository intake."""
+"""Request and response schemas for repository inspection."""
+
+from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -29,7 +31,55 @@ class RepositoryDetails(BaseModel):
     repository_url: str
 
 
+class RepositoryMetadata(BaseModel):
+    """Selected repository metadata normalized from GitHub."""
+
+    description: str | None
+    default_branch: str
+    topics: list[str]
+    license: str | None
+    is_archived: bool
+    stargazers_count: int
+    forks_count: int
+    watchers_count: int
+    last_updated_at: datetime
+
+
+class LanguageUsage(BaseModel):
+    """A language and its relative share of repository bytes."""
+
+    name: str
+    bytes: int
+    percentage: float
+
+
+class RepositoryStructure(BaseModel):
+    """Root-level repository structure observed through GitHub."""
+
+    has_readme: bool
+    root_files: list[str]
+    root_directories: list[str]
+
+
+class DetectedFile(BaseModel):
+    """A recognized root-level technology or configuration file."""
+
+    file_name: str
+    category: str
+    label: str
+
+
+class RepositoryInspection(BaseModel):
+    """Lightweight repository insights safe to return to the frontend."""
+
+    metadata: RepositoryMetadata
+    languages: list[LanguageUsage]
+    structure: RepositoryStructure
+    technology_signals: list[DetectedFile]
+
+
 class AnalyzeRepositoryResponse(RepositoryDetails):
-    """Successful repository intake response."""
+    """Successful lightweight repository inspection response."""
 
     success: bool
+    analysis: RepositoryInspection

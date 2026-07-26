@@ -2,16 +2,10 @@
 
 import { FormEvent, useState } from "react";
 import { ArrowRightIcon, GithubIcon } from "./icons";
+import { AnalysisResponse, RepositoryOverview } from "./repository-overview";
 
 const githubRepositoryPattern = /^https:\/\/(?:www\.)?github\.com\/[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})\/[A-Za-z0-9._-]+\/?$/;
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8000";
-
-type AnalysisResponse = {
-  success: true;
-  owner: string;
-  repository: string;
-  repository_url: string;
-};
 
 type ApiValidationError = {
   detail?: string | Array<{ msg?: string }>;
@@ -91,17 +85,7 @@ export function RepositoryUrlForm() {
       </div>
       {touched && error ? <p className="mt-3 text-left text-sm text-rose-600" id="repository-url-error" role="alert">{error}</p> : <p className="mt-3 text-left text-sm text-slate-500">Public GitHub repositories only. No code is executed.</p>}
       {submissionError ? <p className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-left text-sm text-rose-700" role="alert">{submissionError}</p> : null}
-      {result ? (
-        <section aria-live="polite" className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50 p-6 text-left shadow-sm">
-          <p className="text-sm font-semibold uppercase tracking-widest text-emerald-700">Repository ready</p>
-          <h2 className="mt-2 text-xl font-bold text-slate-950">Repository details</h2>
-          <dl className="mt-5 grid gap-4 sm:grid-cols-3">
-            <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repository Owner</dt><dd className="mt-1 font-medium text-slate-900">{result.owner}</dd></div>
-            <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repository Name</dt><dd className="mt-1 font-medium text-slate-900">{result.repository}</dd></div>
-            <div><dt className="text-xs font-semibold uppercase tracking-wide text-slate-500">Repository URL</dt><dd className="mt-1 break-all font-medium text-blue-700"><a className="hover:underline" href={result.repository_url} rel="noreferrer" target="_blank">{result.repository_url}</a></dd></div>
-          </dl>
-        </section>
-      ) : null}
+      {result ? <RepositoryOverview result={result} /> : null}
     </form>
   );
 }
