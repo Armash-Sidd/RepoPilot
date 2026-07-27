@@ -107,6 +107,63 @@ class EngineeringReview(BaseModel):
     findings: list[ReviewFinding]
 
 
+class HealthCategoryScore(BaseModel):
+    """A weighted, evidence-backed repository health category score."""
+
+    name: str
+    score: int
+    weight: int
+    explanation: str
+    evidence_paths: list[str]
+    recommendation: str | None = None
+
+
+class HealthHighlight(BaseModel):
+    """A notable strength or prioritized improvement from the health score."""
+
+    category: str
+    title: str
+    detail: str
+    evidence_paths: list[str]
+
+
+class RepositoryHealth(BaseModel):
+    """Transparent repository health score derived from category scores."""
+
+    overall_score: int
+    label: str
+    categories: list[HealthCategoryScore]
+    top_strengths: list[HealthHighlight]
+    highest_priority_improvements: list[HealthHighlight]
+
+
+class IntelligenceInsight(BaseModel):
+    """A deterministic repository interpretation tied to collected evidence."""
+
+    title: str
+    detail: str
+    status: str
+    evidence_paths: list[str]
+
+
+class ProjectTypeInsight(BaseModel):
+    """A bounded inference about the repository's likely project type."""
+
+    project_type: str
+    detail: str
+    evidence_paths: list[str]
+
+
+class RepositoryIntelligence(BaseModel):
+    """Evidence-based interpretation of repository documentation and practices."""
+
+    documentation: list[IntelligenceInsight]
+    development_workflow: list[IntelligenceInsight]
+    project_type: ProjectTypeInsight
+    technology_understanding: list[IntelligenceInsight]
+    best_practices: list[IntelligenceInsight]
+
+
 class RepositoryInspection(BaseModel):
     """Lightweight repository insights safe to return to the frontend."""
 
@@ -116,6 +173,8 @@ class RepositoryInspection(BaseModel):
     technology_signals: list[DetectedFile]
     evidence: RepositoryEvidence
     engineering_review: EngineeringReview
+    health: RepositoryHealth
+    intelligence: RepositoryIntelligence
 
 
 class AnalyzeRepositoryResponse(RepositoryDetails):

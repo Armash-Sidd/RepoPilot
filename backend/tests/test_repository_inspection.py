@@ -14,18 +14,23 @@ class FakeGitHubRepositoryClient:
         return {"Python": 75, "TypeScript": 25}
 
     def get_root_contents(self, owner: str, repository: str):
-        return [{"name": "README.md", "type": "file"}, {"name": "requirements.txt", "type": "file"}, {"name": "app", "type": "dir"}]
+        return [{"name": "README.md", "type": "file"}, {"name": "requirements.txt", "type": "file"}, {"name": "app", "type": "dir"}, {"name": "tests", "type": "dir"}]
 
     def get_repository_tree(self, owner: str, repository: str, branch: str):
         return [
             {"path": "README.md", "type": "blob"},
             {"path": "requirements.txt", "type": "blob"},
             {"path": "app/main.py", "type": "blob"},
+            {"path": "tests/test_example.py", "type": "blob"},
             {"path": ".github/workflows/test.yml", "type": "blob"},
         ], False
 
     def get_file_content(self, owner: str, repository: str, path: str):
-        return {"README.md": "# Example", "requirements.txt": "fastapi", ".github/workflows/test.yml": "name: test"}[path]
+        return {
+            "README.md": "# Example\n\n## Installation\n\n## Usage\n\n## Contributing\n\n## License",
+            "requirements.txt": "fastapi\npydantic\npytest\nuvicorn",
+            ".github/workflows/test.yml": "name: test\nsteps:\n  - run: pytest\n  - run: ruff check .",
+        }[path]
 
 
 class RepositoryInspectionServiceTests(unittest.TestCase):
@@ -38,6 +43,15 @@ class RepositoryInspectionServiceTests(unittest.TestCase):
         self.assertEqual(inspection.technology_signals[0].file_name, "requirements.txt")
         self.assertEqual(inspection.evidence.files[0].path, ".github/workflows/test.yml")
         self.assertTrue(all(finding.evidence_paths for finding in inspection.engineering_review.findings))
+        self.assertEqual(inspection.health.overall_score, 95)
+        self.assertEqual(inspection.health.label, "Excellent")
+        self.assertTrue(all(category.evidence_paths for category in inspection.health.categories))
+        self.assertEqual(inspection.health.highest_priority_improvements[0].category, "Containerization")
+        self.assertEqual(inspection.intelligence.project_type.project_type, "FastAPI backend")
+        self.assertTrue(all(insight.status == "present" for insight in inspection.intelligence.documentation))
+        self.assertEqual(inspection.intelligence.development_workflow[0].title, "Automated tests")
+        self.assertEqual(inspection.intelligence.development_workflow[0].status, "present")
+        self.assertEqual(inspection.intelligence.technology_understanding[0].title, "FastAPI")
 
 
 if __name__ == "__main__":

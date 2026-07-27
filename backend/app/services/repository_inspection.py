@@ -15,6 +15,8 @@ from app.schemas.analysis import (
     ReviewFinding,
 )
 from app.services.github_repository_client import GitHubRepositoryClient, GitHubRepositoryNotFoundError, GitHubUpstreamError
+from app.services.repository_health import RepositoryHealthService
+from app.services.repository_intelligence import RepositoryIntelligenceService
 from app.services.repository_url import ParsedRepositoryUrl
 
 TECHNOLOGY_FILE_SIGNALS = {
@@ -67,14 +69,18 @@ class RepositoryInspectionService:
         metadata = self._normalize_metadata(metadata_payload)
         evidence = self._collect_evidence(repository, metadata.default_branch)
         technology_signals = self._detect_technology_signals(contents_payload)
+        structure = self._normalize_structure(contents_payload)
 
+        health = RepositoryHealthService().score(evidence, structure, technology_signals)
         return RepositoryInspection(
             metadata=metadata,
             languages=self._normalize_languages(languages_payload),
-            structure=self._normalize_structure(contents_payload),
+            structure=structure,
             technology_signals=technology_signals,
             evidence=evidence,
             engineering_review=self._generate_review(evidence, technology_signals, languages_payload),
+            health=health,
+            intelligence=RepositoryIntelligenceService().analyze(evidence, structure, technology_signals, health),
         )
 
     def _collect_evidence(self, repository: ParsedRepositoryUrl, branch: str) -> RepositoryEvidence:
