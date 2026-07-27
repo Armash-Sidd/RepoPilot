@@ -69,6 +69,44 @@ class DetectedFile(BaseModel):
     label: str
 
 
+class EvidenceFile(BaseModel):
+    """A bounded repository file collected to support the engineering review."""
+
+    path: str
+    category: str
+    content: str
+
+
+class RepositoryEvidence(BaseModel):
+    """Repository material explicitly collected for review generation."""
+
+    directory_tree: list[str]
+    files: list[EvidenceFile]
+    tree_was_truncated: bool
+
+
+class ReviewFinding(BaseModel):
+    """An engineering observation tied to one or more evidence paths."""
+
+    category: str
+    title: str
+    detail: str
+    severity: str
+    evidence_paths: list[str]
+    recommendation: str | None = None
+    priority: int | None = None
+
+
+class EngineeringReview(BaseModel):
+    """Evidence-backed engineering review for a repository."""
+
+    architecture_summary: str
+    architecture_evidence_paths: list[str]
+    technology_stack: list[str]
+    technology_stack_evidence_paths: list[str]
+    findings: list[ReviewFinding]
+
+
 class RepositoryInspection(BaseModel):
     """Lightweight repository insights safe to return to the frontend."""
 
@@ -76,6 +114,8 @@ class RepositoryInspection(BaseModel):
     languages: list[LanguageUsage]
     structure: RepositoryStructure
     technology_signals: list[DetectedFile]
+    evidence: RepositoryEvidence
+    engineering_review: EngineeringReview
 
 
 class AnalyzeRepositoryResponse(RepositoryDetails):

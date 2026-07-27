@@ -16,6 +16,17 @@ class FakeGitHubRepositoryClient:
     def get_root_contents(self, owner: str, repository: str):
         return [{"name": "README.md", "type": "file"}, {"name": "requirements.txt", "type": "file"}, {"name": "app", "type": "dir"}]
 
+    def get_repository_tree(self, owner: str, repository: str, branch: str):
+        return [
+            {"path": "README.md", "type": "blob"},
+            {"path": "requirements.txt", "type": "blob"},
+            {"path": "app/main.py", "type": "blob"},
+            {"path": ".github/workflows/test.yml", "type": "blob"},
+        ], False
+
+    def get_file_content(self, owner: str, repository: str, path: str):
+        return {"README.md": "# Example", "requirements.txt": "fastapi", ".github/workflows/test.yml": "name: test"}[path]
+
 
 class RepositoryInspectionServiceTests(unittest.TestCase):
     def test_inspection_normalizes_github_responses(self):
@@ -25,6 +36,8 @@ class RepositoryInspectionServiceTests(unittest.TestCase):
         self.assertEqual(inspection.languages[0].percentage, 75.0)
         self.assertTrue(inspection.structure.has_readme)
         self.assertEqual(inspection.technology_signals[0].file_name, "requirements.txt")
+        self.assertEqual(inspection.evidence.files[0].path, ".github/workflows/test.yml")
+        self.assertTrue(all(finding.evidence_paths for finding in inspection.engineering_review.findings))
 
 
 if __name__ == "__main__":

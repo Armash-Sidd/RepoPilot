@@ -1,6 +1,7 @@
 """Small HTTP client for GitHub's public repository REST endpoints."""
 
 import json
+import base64
 from socket import timeout as SocketTimeout
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -45,6 +46,23 @@ class GitHubRepositoryClient:
         if not isinstance(payload, list):
             raise GitHubUpstreamError("GitHub returned an unexpected repository structure response.")
         return payload
+
+    def get_repository_tree(self, owner: str, repository: str, branch: str) -> tuple[list[dict[str, Any]], bool]:
+        """Return a recursive path index without fetching repository source."""
+        payload = self._get_json(f"/repos/{owner}/{repository}/git/trees/{branch}?recursive=1")
+        if not isinstance(payload, dict) or not isinstance(payload.get("tree"), list):
+            raise GitHubUpstreamError("GitHub returned an unexpected repository tree response.")
+        return payload["tree"], bool(payload.get("truncated", False))
+
+    def get_file_content(self, owner: str, repository: str, path: str) -> str:
+        """Read a single, explicitly selected public repository file."""
+        payload = self._get_json(f"/repos/{owner}/{repository}/contents/{path}")
+        if not isinstance(payload, dict) or payload.get("encoding") != "base64" or not isinstance(payload.get("content"), str):
+            raise GitHubUpstreamError("GitHub returned an unreadable repository file.")
+        try:
+            return base64.b64decode(payload["content"].replace("\n", "")).decode("utf-8")
+        except (ValueError, UnicodeDecodeError) as error:
+            raise GitHubUpstreamError("GitHub returned a non-text repository file.") from error
 
     def _get_json(self, path: str) -> Any:
         request = Request(
