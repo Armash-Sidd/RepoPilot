@@ -1,5 +1,7 @@
 """Small HTTP client for GitHub's public repository REST endpoints."""
 
+from __future__ import annotations
+
 import json
 import base64
 from socket import timeout as SocketTimeout

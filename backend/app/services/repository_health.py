@@ -1,5 +1,7 @@
 """Deterministic, evidence-backed repository health scoring."""
 
+from __future__ import annotations
+
 from app.schemas.analysis import (
     DetectedFile,
     HealthCategoryScore,

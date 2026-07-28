@@ -1,7 +1,9 @@
 """Unit tests for lightweight repository inspection normalization."""
 
 import unittest
+from unittest.mock import patch
 
+from app.services.github_repository_client import GitHubRepositoryClient
 from app.services.repository_inspection import RepositoryInspectionService
 from app.services.repository_url import ParsedRepositoryUrl
 
@@ -34,6 +36,12 @@ class FakeGitHubRepositoryClient:
 
 
 class RepositoryInspectionServiceTests(unittest.TestCase):
+    def test_github_client_uses_optional_token_and_anonymous_fallback(self):
+        self.assertNotIn("Authorization", GitHubRepositoryClient(token="")._headers())
+        self.assertEqual(GitHubRepositoryClient(token="configured-token")._headers()["Authorization"], "Bearer configured-token")
+        with patch.dict("os.environ", {"GITHUB_TOKEN": "environment-token"}, clear=True):
+            self.assertEqual(GitHubRepositoryClient()._headers()["Authorization"], "Bearer environment-token")
+
     def test_inspection_normalizes_github_responses(self):
         inspection = RepositoryInspectionService(FakeGitHubRepositoryClient()).inspect(ParsedRepositoryUrl(owner="owner", repository="repository", repository_url="https://github.com/owner/repository"))
         self.assertEqual(inspection.metadata.license, "MIT")

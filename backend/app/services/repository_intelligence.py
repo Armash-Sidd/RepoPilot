@@ -1,5 +1,7 @@
 """Deterministic interpretation of bounded repository evidence."""
 
+from __future__ import annotations
+
 import re
 
 from app.schemas.analysis import (
