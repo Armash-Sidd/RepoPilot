@@ -184,3 +184,12 @@ class AnalyzeRepositoryResponse(RepositoryDetails):
 
     success: bool
     analysis: RepositoryInspection
+
+
+class GitHubRateLimitResponse(BaseModel):
+    """Current GitHub API quota for RepoPilot's active authentication mode."""
+
+    authenticated: bool
+    limit: int
+    remaining: int
+    reset: int

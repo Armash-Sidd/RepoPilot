@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import json
 import base64
+import json
+import os
 from socket import timeout as SocketTimeout
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -27,12 +28,30 @@ class GitHubUpstreamError(Exception):
 
 
 class GitHubRepositoryClient:
-    """Read public repository data from GitHub without authentication."""
+    """Read public repository data from GitHub with optional authentication."""
 
     API_BASE_URL = "https://api.github.com"
 
-    def __init__(self, timeout_seconds: float = 10.0) -> None:
+    def __init__(self, timeout_seconds: float = 10.0, token: str | None = None) -> None:
         self.timeout_seconds = timeout_seconds
+        configured_token = token if token is not None else os.getenv("GITHUB_TOKEN")
+        self.token = configured_token.strip() if configured_token else None
+
+    @property
+    def authenticated(self) -> bool:
+        """Whether requests include a configured GitHub token."""
+        return self.token is not None
+
+    def _headers(self) -> dict[str, str]:
+        """Build GitHub request headers without exposing the token elsewhere."""
+        headers = {
+            "Accept": "application/vnd.github+json",
+            "User-Agent": "RepoPilot/0.1",
+            "X-GitHub-Api-Version": "2022-11-28",
+        }
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+        return headers
 
     def get_repository(self, owner: str, repository: str) -> dict[str, Any]:
         """Return the repository metadata payload."""
@@ -66,14 +85,21 @@ class GitHubRepositoryClient:
         except (ValueError, UnicodeDecodeError) as error:
             raise GitHubUpstreamError("GitHub returned a non-text repository file.") from error
 
+    def get_rate_limit(self) -> dict[str, int]:
+        """Return the active core API quota reported by GitHub."""
+        payload = self._get_json("/rate_limit")
+        core = payload.get("resources", {}).get("core") if isinstance(payload, dict) else None
+        if not isinstance(core, dict):
+            raise GitHubUpstreamError("GitHub returned an unexpected rate-limit response.")
+        limit, remaining, reset = (core.get(name) for name in ("limit", "remaining", "reset"))
+        if not all(isinstance(value, int) and value >= 0 for value in (limit, remaining, reset)):
+            raise GitHubUpstreamError("GitHub returned an invalid rate-limit response.")
+        return {"limit": limit, "remaining": remaining, "reset": reset}
+
     def _get_json(self, path: str) -> Any:
         request = Request(
             f"{self.API_BASE_URL}{path}",
-            headers={
-                "Accept": "application/vnd.github+json",
-                "User-Agent": "RepoPilot/0.1",
-                "X-GitHub-Api-Version": "2022-11-28",
-            },
+            headers=self._headers(),
         )
 
         try:
@@ -82,7 +108,8 @@ class GitHubRepositoryClient:
         except HTTPError as error:
             if error.code == 404:
                 raise GitHubRepositoryNotFoundError from error
-            if error.code == 429 or error.headers.get("X-RateLimit-Remaining") == "0":
+            error_body = self._read_error_body(error)
+            if self._is_rate_limit_error(error, error_body):
                 raise GitHubRateLimitError from error
             raise GitHubUpstreamError("GitHub returned an unexpected response.") from error
         except (SocketTimeout, TimeoutError) as error:
@@ -93,3 +120,19 @@ class GitHubRepositoryClient:
             raise GitHubUpstreamError("GitHub could not be reached.") from error
         except (UnicodeDecodeError, json.JSONDecodeError) as error:
             raise GitHubUpstreamError("GitHub returned an unreadable response.") from error
+
+    @staticmethod
+    def _read_error_body(error: HTTPError) -> str:
+        """Safely extract GitHub's error message for response classification."""
+        try:
+            payload = json.loads(error.read().decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            return ""
+        message = payload.get("message") if isinstance(payload, dict) else None
+        return message.lower() if isinstance(message, str) else ""
+
+    @staticmethod
+    def _is_rate_limit_error(error: HTTPError, error_message: str) -> bool:
+        """Identify rate limiting without treating every GitHub 403 as a quota error."""
+        remaining = error.headers.get("X-RateLimit-Remaining") if error.headers else None
+        return error.code == 429 or remaining == "0" or "rate limit" in error_message

@@ -1,8 +1,12 @@
 """Unit tests for lightweight repository inspection normalization."""
 
 import unittest
+from email.message import Message
+from io import BytesIO
 from unittest.mock import patch
+from urllib.error import HTTPError
 
+from app.api.routes.github import get_github_rate_limit
 from app.services.github_repository_client import GitHubRepositoryClient
 from app.services.repository_inspection import RepositoryInspectionService
 from app.services.repository_url import ParsedRepositoryUrl
@@ -41,6 +45,23 @@ class RepositoryInspectionServiceTests(unittest.TestCase):
         self.assertEqual(GitHubRepositoryClient(token="configured-token")._headers()["Authorization"], "Bearer configured-token")
         with patch.dict("os.environ", {"GITHUB_TOKEN": "environment-token"}, clear=True):
             self.assertEqual(GitHubRepositoryClient()._headers()["Authorization"], "Bearer environment-token")
+            self.assertTrue(GitHubRepositoryClient().authenticated)
+
+    def test_github_client_distinguishes_rate_limit_from_other_forbidden_responses(self):
+        exhausted_headers = Message()
+        exhausted_headers["X-RateLimit-Remaining"] = "0"
+        exhausted = HTTPError("https://api.github.com", 403, "Forbidden", exhausted_headers, BytesIO(b'{"message":"API rate limit exceeded"}'))
+        forbidden = HTTPError("https://api.github.com", 403, "Forbidden", Message(), BytesIO(b'{"message":"Resource not accessible by integration"}'))
+
+        self.assertTrue(GitHubRepositoryClient._is_rate_limit_error(exhausted, GitHubRepositoryClient._read_error_body(exhausted)))
+        self.assertFalse(GitHubRepositoryClient._is_rate_limit_error(forbidden, GitHubRepositoryClient._read_error_body(forbidden)))
+
+    def test_rate_limit_endpoint_reports_the_active_client_mode(self):
+        fake_client = type("FakeClient", (), {"authenticated": True, "get_rate_limit": lambda self: {"limit": 5000, "remaining": 4999, "reset": 1234567890}})()
+        with patch("app.api.routes.github.GitHubRepositoryClient", return_value=fake_client):
+            response = get_github_rate_limit()
+
+        self.assertEqual(response.model_dump(), {"authenticated": True, "limit": 5000, "remaining": 4999, "reset": 1234567890})
 
     def test_inspection_normalizes_github_responses(self):
         inspection = RepositoryInspectionService(FakeGitHubRepositoryClient()).inspect(ParsedRepositoryUrl(owner="owner", repository="repository", repository_url="https://github.com/owner/repository"))
