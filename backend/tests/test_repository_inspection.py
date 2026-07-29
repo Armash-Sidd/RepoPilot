@@ -9,7 +9,7 @@ from urllib.error import HTTPError
 from app.api.routes.github import get_github_rate_limit
 from app.services.github_repository_client import GitHubRepositoryClient
 from app.services.repository_inspection import RepositoryInspectionService
-from app.services.repository_url import ParsedRepositoryUrl
+from app.services.repository_url import ParsedRepositoryUrl, normalize_repository_url, parse_repository_url
 
 
 class FakeGitHubRepositoryClient:
@@ -40,6 +40,21 @@ class FakeGitHubRepositoryClient:
 
 
 class RepositoryInspectionServiceTests(unittest.TestCase):
+    def test_repository_url_normalizes_common_github_formats(self):
+        expected_url = "https://github.com/owner/repository"
+        for repository_url in (
+            "https://github.com/owner/repository",
+            "https://github.com/owner/repository/",
+            "https://github.com/owner/repository.git",
+            "  https://github.com/owner/repository.git/  ",
+        ):
+            with self.subTest(repository_url=repository_url):
+                self.assertEqual(normalize_repository_url(repository_url), expected_url)
+                parsed = parse_repository_url(repository_url)
+                self.assertEqual(parsed.owner, "owner")
+                self.assertEqual(parsed.repository, "repository")
+                self.assertEqual(parsed.repository_url, expected_url)
+
     def test_github_client_uses_optional_token_and_anonymous_fallback(self):
         self.assertNotIn("Authorization", GitHubRepositoryClient(token="")._headers())
         self.assertEqual(GitHubRepositoryClient(token="configured-token")._headers()["Authorization"], "Bearer configured-token")

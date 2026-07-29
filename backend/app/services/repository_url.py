@@ -32,17 +32,22 @@ def normalize_repository_url(value: str) -> str:
             "https://github.com/owner/repository."
         )
 
-    return f"https://github.com/{match.group('owner')}/{match.group('repository')}"
+    repository = match.group("repository")
+    if repository.endswith(".git"):
+        repository = repository[:-4]
+
+    return f"https://github.com/{match.group('owner')}/{repository}"
 
 
 def parse_repository_url(repository_url: str) -> ParsedRepositoryUrl:
-    """Extract the owner and repository from an already validated URL."""
-    match = GITHUB_REPOSITORY_URL_PATTERN.fullmatch(repository_url)
+    """Normalize a GitHub URL before extracting its owner and repository."""
+    normalized_url = normalize_repository_url(repository_url)
+    match = GITHUB_REPOSITORY_URL_PATTERN.fullmatch(normalized_url)
     if match is None:
         raise ValueError("Repository URL must be a valid GitHub repository URL.")
 
     return ParsedRepositoryUrl(
         owner=match.group("owner"),
         repository=match.group("repository"),
-        repository_url=repository_url,
+        repository_url=normalized_url,
     )
