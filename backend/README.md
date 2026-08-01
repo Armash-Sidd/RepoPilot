@@ -1,15 +1,26 @@
-# Backend
+# RepoPilot Backend
 
-> Setup guide for the FastAPI service scaffold.
+FastAPI backend responsible for repository inspection and engineering analysis.
 
-## Setup
+## Responsibilities
 
-Create and activate a virtual environment, then install dependencies:
+- GitHub REST API integration
+- Repository metadata collection
+- Technology detection
+- Repository health scoring
+- Engineering review generation
+- Error handling
+- URL normalization
+
+## Run locally
 
 ```bash
 pip install -r requirements.txt
 uvicorn main:app --reload
 ```
 
-The API documentation is available locally at `/docs` after the service starts.
+## Run with Docker
 
+```bash
+docker compose up
+```

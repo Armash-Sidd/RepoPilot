@@ -1,15 +1,25 @@
-# Frontend
+# RepoPilot Frontend
 
-> Setup guide for the Next.js, TypeScript, and Tailwind CSS frontend scaffold.
+Next.js frontend providing an interactive interface for repository analysis.
 
-## Setup
+## Responsibilities
 
-Install dependencies and start the development server:
+- Repository URL validation
+- Analysis request submission
+- Display engineering review
+- Display repository health
+- Present technology stack
+- Render repository insights
+
+## Run locally
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in a browser. Use `npm run build` to create a production build.
+## Run with Docker
 
+```bash
+docker compose up
+```
